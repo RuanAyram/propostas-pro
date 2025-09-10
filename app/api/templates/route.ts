@@ -1,7 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rate-limit"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Aplicar rate limiting
+  const rateLimitResponse = rateLimit(request)
+  if (rateLimitResponse) {
+    return rateLimitResponse
+  }
+
   try {
     const templates = await prisma.template.findMany({
       orderBy: { createdAt: 'desc' }
@@ -15,6 +22,12 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Aplicar rate limiting
+  const rateLimitResponse = rateLimit(request)
+  if (rateLimitResponse) {
+    return rateLimitResponse
+  }
+
   try {
     const { name, content, description } = await request.json()
 

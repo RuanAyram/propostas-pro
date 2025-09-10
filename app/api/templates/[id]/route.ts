@@ -1,7 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rate-limit"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  // Aplicar rate limiting
+  const rateLimitResponse = rateLimit(request)
+  if (rateLimitResponse) {
+    return rateLimitResponse
+  }
+
   try {
     const { name, content, description } = await request.json()
     const id = Number.parseInt(params.id)
@@ -33,6 +40,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  // Aplicar rate limiting
+  const rateLimitResponse = rateLimit(request)
+  if (rateLimitResponse) {
+    return rateLimitResponse
+  }
+
   try {
     const id = Number.parseInt(params.id)
 

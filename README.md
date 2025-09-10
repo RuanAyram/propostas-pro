@@ -7,13 +7,15 @@ Uma aplicação web moderna e profissional para criação, edição e gerenciame
 ### ✨ Principais Recursos
 
 - **Editor de Texto Rico**: Editor completo com formatação de texto, títulos, listas, links, imagens e cores
-- **Sistema de Templates**: Salve e reutilize templates de propostas com SQLite
+- **Sistema de Templates**: Salve e reutilize templates de propostas com Neon DB
 - **Preview A4**: Visualização em tempo real no formato A4 com zoom ajustável
 - **Exportação PDF**: Gere PDFs profissionais mantendo toda a formatação
 - **Compartilhamento**: Crie links para visualização das propostas
 - **Gerenciamento de Dados**: Formulários para contratante e contratado com validação
 - **Upload de Logos**: Suporte para logos das empresas
 - **Design Responsivo**: Interface moderna e responsiva
+- **Rate Limiting**: Proteção contra abuso com limite de 30 requisições/minuto
+- **Segurança**: Validação de dados e sanitização de entrada
 
 ### 📋 Seções de Configuração
 
@@ -25,7 +27,7 @@ Uma aplicação web moderna e profissional para criação, edição e gerenciame
 
 - **Frontend**: Next.js 14, React, TypeScript
 - **Styling**: Tailwind CSS, shadcn/ui
-- **Banco de Dados**: SQLite com better-sqlite3
+- **Banco de Dados**: Neon DB (PostgreSQL) com Prisma ORM
 - **Editor**: ContentEditable API com toolbar customizada
 - **PDF**: html2pdf.js para exportação
 - **Validação**: Zod para validação de formulários
@@ -55,11 +57,15 @@ yarn install
 
 3. **Configure o banco de dados**
 \`\`\`bash
-# Crie o diretório para o banco
-mkdir data
+# 1. Crie uma conta no Neon (https://neon.tech)
+# 2. Crie um novo projeto
+# 3. Copie a string de conexão PostgreSQL
+# 4. Crie um arquivo .env na raiz do projeto:
+echo "DATABASE_URL=\"postgresql://username:password@ep-xxx-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require&pgbouncer=true\"" > .env
 
-# Execute o script SQL para criar as tabelas
-# O banco será criado automaticamente na primeira execução
+# 5. Execute as migrações
+npm run db:push
+npm run db:seed
 \`\`\`
 
 4. **Execute o projeto**
@@ -128,6 +134,20 @@ http://localhost:3000
 - `PUT /api/templates/[id]` - Atualiza template existente  
 - `DELETE /api/templates/[id]` - Remove template
 
+### Administração
+
+- `GET /api/admin/rate-limit` - Estatísticas de rate limiting (requer chave de admin)
+
+### Rate Limiting
+
+Todas as rotas da API estão protegidas com rate limiting:
+- **Limite**: 30 requisições por minuto por IP
+- **Headers de resposta**:
+  - `X-RateLimit-Limit`: Limite máximo de requisições
+  - `X-RateLimit-Remaining`: Requisições restantes
+  - `X-RateLimit-Reset`: Timestamp de reset do limite
+  - `Retry-After`: Segundos para tentar novamente (quando limitado)
+
 ### Exemplo de Uso da API
 
 \`\`\`javascript
@@ -170,23 +190,49 @@ O sistema inclui templates padrão que podem ser modificados no arquivo `scripts
 
 \`\`\`bash
 npm run dev          # Execução em desenvolvimento
-npm run build        # Build para produção
+npm run build        # Build para produção (inclui geração do Prisma Client)
 npm run start        # Execução em produção
 npm run lint         # Verificação de código
+
+# Comandos do banco de dados
+npm run db:push      # Push do schema para o banco
+npm run db:migrate   # Criar migração
+npm run db:deploy    # Aplicar migrações em produção
+npm run db:studio    # Interface visual do banco
+npm run db:seed      # Popular banco com dados iniciais
+npm run db:reset     # Reset do banco de dados
 \`\`\`
 
 ### Estrutura do Banco de Dados
 
 \`\`\`sql
-CREATE TABLE templates (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  content TEXT NOT NULL,
-  description TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+model Template {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  content     String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("templates")
+}
 \`\`\`
+
+### Variáveis de Ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+# Database
+DATABASE_URL="postgresql://username:password@ep-xxx-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require&pgbouncer=true"
+
+# Admin (opcional)
+ADMIN_KEY="sua-chave-secreta-para-admin"
+
+# Next.js
+NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_URL="http://localhost:3000"
+```
 
 ## 🤝 Contribuição
 
@@ -204,10 +250,14 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 - O editor pode ter problemas de cursor em alguns navegadores antigos
 - Imagens muito grandes podem afetar a performance do PDF
-- Templates com HTML complexo podem não renderizar corretamente no PDF
+- Rate limiting pode afetar usuários com muitas requisições simultâneas
 
 ## 🔮 Roadmap
 
+- [x] Rate limiting para proteção da API
+- [x] Integração com Neon DB (PostgreSQL)
+- [x] Sistema de templates com Prisma ORM
+- [x] Exportação PDF otimizada
 - [ ] Integração com APIs de CEP
 - [ ] Assinatura digital de propostas
 - [ ] Sistema de aprovação/rejeição
@@ -215,12 +265,14 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 - [ ] Versionamento de propostas
 - [ ] Dashboard de analytics
 - [ ] Integração com CRM
+- [ ] Autenticação de usuários
+- [ ] Logs de auditoria
 
 ## 📞 Suporte
 
 Para suporte e dúvidas:
 - Abra uma issue no GitHub
-- Entre em contato via email: suporte@exemplo.com
+- Entre em contato via email: ruan.kaylo@gmail.com
 
 ---
 
