@@ -10,6 +10,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model UserRole {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique @map("user_id") // Stack Auth user ID
+  role      String   @default("user") // "admin", "user", etc.
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("user_roles")
+}
+
 model Template {
   id          Int      @id @default(autoincrement())
   name        String   @unique
