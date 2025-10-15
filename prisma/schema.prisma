@@ -97,3 +97,19 @@ model Transaction {
   @@index([paymentId])
   @@map("transactions")
 }
+
+model Contractor {
+  id              Int       @id @default(autoincrement())
+  userId          String    @unique @map("user_id") // Stack Auth user ID
+  nome            String
+  documento       String
+  endereco        String
+  telefone        String
+  email           String
+  logoUrl         String?   @map("logo_url") // URL da logo no Cloudinary
+  logoPublicId    String?   @map("logo_public_id") // Public ID da imagem no Cloudinary
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("contractors")
+}

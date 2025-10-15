@@ -15,6 +15,7 @@ interface CompanyData {
   telefone: string
   email: string
   logo?: File | null
+  logoUrl?: string | null
 }
 
 interface ProposalData {
@@ -40,77 +41,6 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
 
   const hasData =
     proposalData && (proposalData.contratante.nome || proposalData.contratado.nome || proposalData.conteudo)
-
-  const handleExportPDF = async () => {
-    console.log("handleExportPDF chamado")
-    console.log("previewRef.current:", previewRef.current)
-    console.log("proposalData:", proposalData)
-
-    if (!previewRef.current) {
-      console.error("previewRef.current é null")
-      toast({
-        title: "Erro na Exportação",
-        description: "Elemento de preview não encontrado",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!proposalData) {
-      console.error("proposalData é null")
-      toast({
-        title: "Erro na Exportação",
-        description: "Dados da proposta não encontrados",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsExporting(true)
-    try {
-      const filename = `proposta-${proposalData.contratante.nome || "comercial"}-${new Date().toISOString().split("T")[0]}.pdf`
-      console.log("Tentando gerar PDF com filename:", filename)
-      
-      await generatePDF(previewRef.current, filename)
-
-      toast({
-        title: "PDF Exportado",
-        description: "Sua proposta foi exportada com sucesso!",
-      })
-    } catch (error) {
-      console.error("Erro em handleExportPDF:", error)
-      toast({
-        title: "Erro na Exportação",
-        description: error instanceof Error ? error.message : "Falha ao exportar PDF",
-        variant: "destructive",
-      })
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
-  const handleShare = async () => {
-    if (!proposalData) return
-
-    setIsSharing(true)
-    try {
-      const link = generateShareableLink(proposalData)
-      setShareLink(link)
-
-      toast({
-        title: "Link Gerado",
-        description: "Link compartilhável criado com sucesso!",
-      })
-    } catch (error) {
-      toast({
-        title: "Erro ao Compartilhar",
-        description: error instanceof Error ? error.message : "Falha ao gerar link",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSharing(false)
-    }
-  }
 
   const handleCopyLink = async () => {
     if (!shareLink) return
@@ -257,9 +187,15 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
                   <div className="flex items-center justify-between h-full px-12">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center border-2 border-primary/20">
-                        {proposalData?.contratante.logo ? (
+                        {proposalData?.contratante.logoUrl ? (
                           <img
-                            src={URL.createObjectURL(proposalData.contratante.logo) || "/placeholder.svg"}
+                            src={proposalData.contratante.logoUrl}
+                            alt="Logo"
+                            className="w-full h-full object-contain rounded"
+                          />
+                        ) : proposalData?.contratante.logo ? (
+                          <img
+                            src={URL.createObjectURL(proposalData.contratante.logo)}
                             alt="Logo"
                             className="w-full h-full object-contain rounded"
                           />
