@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,10 @@ import { ConfigTab } from "@/components/config-tab"
 import { PreviewTab } from "@/components/preview-tab"
 import { ClientComponent } from "../hooks/user-current-user"
 import Link from "next/link"
-import { useStackApp } from "@stackframe/stack" 
+import { useStackApp } from "@stackframe/stack"
+import { ProfileSetupModal } from "@/components/profile-setup-modal"
+import { useUserProfile } from "@/hooks/use-user-profile"
+import { toast } from "sonner" 
 
 interface CompanyData {
   nome: string
@@ -31,10 +34,14 @@ interface ProposalData {
 export default function ProposalGenerator() {
   const [activeTab, setActiveTab] = useState("config")
   const [isGlobalConfigOpen, setIsGlobalConfigOpen] = useState(false)
+  const [isProfileSetupOpen, setIsProfileSetupOpen] = useState(false)
   
   // Stack authentication
   const app = useStackApp()
   const user = app.useUser()
+  
+  // User profile
+  const { profile, loading: profileLoading, fetchProfile } = useUserProfile(user?.id)
   
   // Dados globais do contratante (configurações globais)
   const [globalContratanteData, setGlobalContratanteData] = useState<CompanyData>({
@@ -83,6 +90,20 @@ export default function ProposalGenerator() {
     }))
   }
 
+  // Verificar se usuário precisa completar perfil
+  useEffect(() => {
+    if (user && !profileLoading && !profile) {
+      // Usuário logado mas sem perfil - abrir modal
+      setIsProfileSetupOpen(true)
+    }
+  }, [user, profile, profileLoading])
+
+  // Callback quando perfil for completado
+  const handleProfileComplete = () => {
+    toast.success('Perfil completado com sucesso!')
+    fetchProfile(user?.id)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -101,7 +122,7 @@ export default function ProposalGenerator() {
             <div className="flex items-center gap-2">
               <Dialog open={isGlobalConfigOpen} onOpenChange={setIsGlobalConfigOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" disabled={!user}>
                     <Settings className="mr-2 h-4 w-4" />
                     Configurações Globais
                   </Button>
@@ -202,14 +223,24 @@ export default function ProposalGenerator() {
           </TabsList>
 
           <TabsContent value="config" className="space-y-6">
-            <ConfigTab proposalData={proposalData} onDataChange={setProposalData} />
+            <ConfigTab proposalData={proposalData} onDataChange={setProposalData} user={user}/>
           </TabsContent>
 
           <TabsContent value="preview" className="space-y-6">
-            <PreviewTab proposalData={proposalData} />
+            <PreviewTab proposalData={proposalData} user={user}/>
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Modal de Setup de Perfil */}
+      {user && (
+        <ProfileSetupModal
+          open={isProfileSetupOpen}
+          onOpenChange={setIsProfileSetupOpen}
+          userId={user.id}
+          onComplete={handleProfileComplete}
+        />
+      )}
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Share2, Printer, ZoomIn, ZoomOut, Copy, Check, Loader2 } from "lucide-react"
+import { Printer, ZoomIn, ZoomOut, Copy, Check } from "lucide-react"
 import { useState, useRef } from "react"
 import { generatePDF, printDocument, generateShareableLink } from "@/lib/pdf-utils"
 
@@ -25,12 +25,11 @@ interface ProposalData {
 
 interface PreviewTabProps {
   proposalData?: ProposalData
+  user?: any
 }
 
-export function PreviewTab({ proposalData }: PreviewTabProps) {
+export function PreviewTab({ proposalData, user }: PreviewTabProps) {
   const [zoomLevel, setZoomLevel] = useState(0.7)
-  const [isExporting, setIsExporting] = useState(false)
-  const [isSharing, setIsSharing] = useState(false)
   const [shareLink, setShareLink] = useState<string>("")
   const [linkCopied, setLinkCopied] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)

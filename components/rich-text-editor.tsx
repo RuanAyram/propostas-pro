@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { useStackApp } from "@stackframe/stack"
 import {
   Bold,
   Italic,
@@ -59,6 +60,10 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
   const [templateName, setTemplateName] = useState("")
   const [templateDescription, setTemplateDescription] = useState("")
   const { toast } = useToast()
+
+  // Stack authentication
+  const app = useStackApp()
+  const user = app.useUser()
 
   useEffect(() => {
     loadTemplates()
@@ -232,7 +237,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         <div className="flex items-center gap-2 mb-2">
           <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={!user}>
                 <Save className="h-4 w-4 mr-1" />
                 Salvar Template
               </Button>
@@ -269,7 +274,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 
           <Dialog open={showLoadDialog} onOpenChange={setShowLoadDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={!user}>
                 <FolderOpen className="h-4 w-4 mr-1" />
                 Carregar Template
               </Button>

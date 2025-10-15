@@ -40,9 +40,10 @@ interface Template {
 interface ConfigTabProps {
   proposalData: ProposalData
   onDataChange: (data: ProposalData) => void
+  user?: any
 }
 
-export function ConfigTab({ proposalData, onDataChange }: ConfigTabProps) {
+export function ConfigTab({ proposalData, onDataChange, user }: ConfigTabProps) {
   const [uploadedFiles, setUploadedFiles] = useState<{
     contratante?: string
     contratado?: string
@@ -53,8 +54,9 @@ export function ConfigTab({ proposalData, onDataChange }: ConfigTabProps) {
   const [templateName, setTemplateName] = useState("")
 
   useEffect(() => {
+    if (!user) return
     loadTemplates()
-  }, [])
+  }, [user])
 
   const loadTemplates = async () => {
     try {
@@ -537,7 +539,7 @@ export function ConfigTab({ proposalData, onDataChange }: ConfigTabProps) {
                         value={templateName}
                         onChange={(e) => setTemplateName(e.target.value)}
                       />
-                      <Button onClick={saveTemplate} disabled={!templateName.trim() || !proposalData.conteudo.trim()}>
+                      <Button onClick={saveTemplate} disabled={!templateName.trim() || !proposalData.conteudo.trim() || !user}>
                         <Save className="mr-2 h-4 w-4" />
                         Salvar Template
                       </Button>
