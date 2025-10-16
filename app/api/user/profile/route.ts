@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Criar perfil do usuário
+// POST - Criar ou atualizar perfil do usuário (UPSERT)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -83,33 +83,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar se já existe perfil para este usuário
-    const existingProfile = await prisma.userProfile.findUnique({
-      where: { userId: validatedData.userId },
-    });
-
-    if (existingProfile) {
-      return NextResponse.json(
-        { success: false, error: 'Perfil já existe para este usuário' },
-        { status: 409 }
-      );
-    }
-
-    // Verificar se CPF já está em uso
-    const existingCPF = await prisma.userProfile.findUnique({
-      where: { cpf },
+    // Verificar se CPF já está em uso por outro usuário
+    const existingCPF = await prisma.userProfile.findFirst({
+      where: {
+        cpf,
+        userId: { not: validatedData.userId },
+      },
     });
 
     if (existingCPF) {
       return NextResponse.json(
-        { success: false, error: 'CPF já cadastrado' },
+        { success: false, error: 'CPF já cadastrado por outro usuário' },
         { status: 409 }
       );
     }
 
-    // Criar perfil
-    const profile = await prisma.userProfile.create({
-      data: {
+    // Criar ou atualizar perfil (UPSERT)
+    const profile = await prisma.userProfile.upsert({
+      where: { userId: validatedData.userId },
+      update: {
+        cpf,
+        phone,
+      },
+      create: {
         userId: validatedData.userId,
         cpf,
         phone,
@@ -124,10 +120,11 @@ export async function POST(request: NextRequest) {
         cpf: profile.cpf,
         phone: profile.phone,
         createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
       },
     });
   } catch (error: any) {
-    console.error('Erro ao criar perfil:', error);
+    console.error('Erro ao salvar perfil:', error);
 
     if (error.name === 'ZodError') {
       return NextResponse.json(
@@ -137,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, error: error.message || 'Erro ao criar perfil' },
+      { success: false, error: error.message || 'Erro ao salvar perfil' },
       { status: 500 }
     );
   }

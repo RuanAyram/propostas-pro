@@ -5,29 +5,54 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    console.log('Webhook recebido do AbacatePay:', body);
+    console.log('Webhook recebido do AbacatePay:', JSON.stringify(body, null, 2));
 
-    // Extrair dados do webhook
-    const { id, status, paidAt } = body;
+    // Novo formato do webhook AbacatePay
+    const { event, data } = body;
 
-    if (!id) {
+    // Verificar se é um evento de pagamento
+    if (event !== 'billing.paid') {
+      console.log('Evento ignorado:', event);
+      return NextResponse.json({
+        success: true,
+        message: 'Evento ignorado',
+      });
+    }
+
+    // Extrair dados do PIX QR Code
+    const pixQrCode = data?.pixQrCode;
+    if (!pixQrCode || !pixQrCode.id) {
       return NextResponse.json(
-        { success: false, error: 'ID do pagamento não fornecido' },
+        { success: false, error: 'Dados do pagamento não fornecidos' },
         { status: 400 }
       );
     }
 
+    const { id: pixQrCodeId, status } = pixQrCode;
+
     // Buscar pagamento pelo abacatePayId
     const payment = await prisma.payment.findUnique({
-      where: { abacatePayId: id },
+      where: { abacatePayId: pixQrCodeId },
     });
 
     if (!payment) {
-      console.error('Pagamento não encontrado:', id);
+      console.error('Pagamento não encontrado:', pixQrCodeId);
       return NextResponse.json(
         { success: false, error: 'Pagamento não encontrado' },
         { status: 404 }
       );
+    }
+
+    // Calcular data de expiração do acesso se o pagamento foi confirmado
+    let accessExpiresAt = payment.accessExpiresAt;
+    
+    if (status === 'PAID' && !payment.accessExpiresAt && payment.plan) {
+      const now = new Date();
+      if (payment.plan === 'monthly') {
+        accessExpiresAt = new Date(now.setMonth(now.getMonth() + 1));
+      } else if (payment.plan === 'annual') {
+        accessExpiresAt = new Date(now.setFullYear(now.getFullYear() + 1));
+      }
     }
 
     // Atualizar status do pagamento
@@ -35,7 +60,8 @@ export async function POST(request: NextRequest) {
       where: { id: payment.id },
       data: {
         status,
-        paidAt: paidAt ? new Date(paidAt) : null,
+        paidAt: status === 'PAID' ? new Date() : null,
+        accessExpiresAt,
       },
     });
 

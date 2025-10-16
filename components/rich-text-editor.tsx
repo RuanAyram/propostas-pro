@@ -66,12 +66,15 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
   const user = app.useUser()
 
   useEffect(() => {
-    loadTemplates()
-  }, [])
+    if (user?.id) {
+      loadTemplates()
+    }
+  }, [user])
 
   const loadTemplates = async () => {
+    if (!user?.id) return
     try {
-      const response = await fetch("/api/templates")
+      const response = await fetch(`/api/templates?userId=${user.id}`)
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -98,6 +101,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          userId: user?.id,
           name: templateName,
           content: value,
           description: templateDescription,
@@ -136,7 +140,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 
   const deleteTemplate = async (id: number) => {
     try {
-      const response = await fetch(`/api/templates/${id}`, {
+      const response = await fetch(`/api/templates/${id}?userId=${user?.id}`, {
         method: "DELETE",
       })
 

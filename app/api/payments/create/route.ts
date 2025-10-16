@@ -4,16 +4,18 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const createPaymentSchema = z.object({
-  amount: z.number().positive().int(),
+  amount: z.number().positive(), // Aceita float (ex: 49.90)
   description: z.string().min(1).max(140),
   expiresIn: z.number().positive().int().default(3600), // 1 hora padrão
   customer: z.object({
+    userId: z.string(),
     name: z.string().min(1),
     email: z.string().email(),
     cellphone: z.string().min(10),
     taxId: z.string().min(11),
   }),
   externalId: z.string().optional(),
+  plan: z.enum(['monthly', 'annual']).optional(), // Plano de pagamento
 });
 
 export async function POST(request: NextRequest) {
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
       customer = await prisma.customer.create({
         data: {
           abacatePayId: abacatePayCustomer.data.id,
+          userId: validatedData.customer.userId,
           name: validatedData.customer.name,
           email: validatedData.customer.email,
           cellphone: validatedData.customer.cellphone,
@@ -50,8 +53,9 @@ export async function POST(request: NextRequest) {
 
     // 2. Criar cobrança PIX no AbacatePay
     const abacatePay = getAbacatePayClient();
+    const amountInCents = Math.round(validatedData.amount * 100)
     const pixQRCode = await abacatePay.createPixQRCode({
-      amount: validatedData.amount,
+      amount: amountInCents,
       expiresIn: validatedData.expiresIn,
       description: validatedData.description,
       customer: validatedData.customer,
@@ -60,7 +64,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 3. Salvar pagamento no banco
+    // 3. Calcular data de expiração do acesso baseado no plano
+    let accessExpiresAt: Date | null = null;
+    if (validatedData.plan) {
+      const now = new Date();
+      if (validatedData.plan === 'monthly') {
+        // Adiciona 30 dias
+        accessExpiresAt = new Date(now.setMonth(now.getMonth() + 1));
+      } else if (validatedData.plan === 'annual') {
+        // Adiciona 1 ano
+        accessExpiresAt = new Date(now.setFullYear(now.getFullYear() + 1));
+      }
+    }
+
+    // 4. Salvar pagamento no banco
     const payment = await prisma.payment.create({
       data: {
         abacatePayId: pixQRCode.data.id,
@@ -73,6 +90,8 @@ export async function POST(request: NextRequest) {
         platformFee: pixQRCode.data.platformFee,
         devMode: pixQRCode.data.devMode,
         externalId: validatedData.externalId,
+        plan: validatedData.plan,
+        accessExpiresAt: accessExpiresAt,
         expiresAt: new Date(pixQRCode.data.expiresAt),
       },
       include: {
@@ -80,7 +99,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 4. Registrar transação
+    // 5. Registrar transação
     await prisma.transaction.create({
       data: {
         paymentId: payment.id,

@@ -10,11 +10,24 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const { name, content, description } = await request.json()
+    const { userId, name, content, description } = await request.json()
     const id = Number.parseInt(params.id)
 
-    if (!name || !content) {
-      return NextResponse.json({ error: "Name and content are required" }, { status: 400 })
+    if (!userId || !name || !content) {
+      return NextResponse.json({ error: "userId, name and content are required" }, { status: 400 })
+    }
+
+    // Verificar se o template pertence ao usuário
+    const existingTemplate = await prisma.template.findUnique({
+      where: { id }
+    })
+
+    if (!existingTemplate) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 })
+    }
+
+    if (existingTemplate.userId !== userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
     const template = await prisma.template.update({
@@ -33,7 +46,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Template not found" }, { status: 404 })
     }
     if (error instanceof Error && error.message.includes('Unique constraint')) {
-      return NextResponse.json({ error: "Template with this name already exists" }, { status: 409 })
+      return NextResponse.json({ error: "Template with this name already exists for this user" }, { status: 409 })
     }
     return NextResponse.json({ error: "Failed to update template" }, { status: 500 })
   }
@@ -47,7 +60,26 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 
   try {
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId')
     const id = Number.parseInt(params.id)
+
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    }
+
+    // Verificar se o template pertence ao usuário
+    const existingTemplate = await prisma.template.findUnique({
+      where: { id }
+    })
+
+    if (!existingTemplate) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 })
+    }
+
+    if (existingTemplate.userId !== userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+    }
 
     await prisma.template.delete({
       where: { id }

@@ -157,12 +157,6 @@ export default function AdminPage() {
                 Voltar ao App
               </Button>
             </Link>
-            <Link href="/admin/payments">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Pagamentos
-              </Button>
-            </Link>
           </div>
         </div>
       </header>

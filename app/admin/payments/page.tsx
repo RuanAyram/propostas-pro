@@ -46,7 +46,7 @@ interface Stats {
 }
 
 export default function AdminPaymentsPage() {
-  const { isAdmin, isLoading: adminLoading } = useAdmin();
+  const { isAdmin, isLoading: adminLoading, user } = useAdmin();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<Stats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,8 +58,12 @@ export default function AdminPaymentsPage() {
       const url = statusFilter === 'all' 
         ? '/api/payments' 
         : `/api/payments?status=${statusFilter}`;
+
+      const headers = {
+        'x-user-id': user?.id || '',
+      };
       
-      const response = await fetch(url);
+      const response = await fetch(url, { headers });
       const data = await response.json();
 
       if (data.success) {

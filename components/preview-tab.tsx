@@ -3,10 +3,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
 import { Printer, ZoomIn, ZoomOut, Copy, Check } from "lucide-react"
-import { useState, useRef } from "react"
-import { generatePDF, printDocument, generateShareableLink } from "@/lib/pdf-utils"
+import { useState, useRef, useEffect, useMemo } from "react"
+import { printDocument } from "@/lib/pdf-utils"
+import { PaymentModalPrint } from "@/components/payment-modal-print"
+import { useAdmin } from "@/hooks/use-admin"
+import { toast } from "sonner"
 
 interface CompanyData {
   nome: string
@@ -33,8 +35,25 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
   const [zoomLevel, setZoomLevel] = useState(0.7)
   const [shareLink, setShareLink] = useState<string>("")
   const [linkCopied, setLinkCopied] = useState(false)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [totalPages, setTotalPages] = useState(1)
   const previewRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const { isAdmin, isLoading: adminLoading } = useAdmin()
+
+  // Altura de uma página A4 em pixels (1123px) menos header (96px) e footer (64px)
+  const PAGE_CONTENT_HEIGHT = 1123 - 96 - 64 // 963px de conteúdo por página
+
+  // Calcular número de páginas baseado na altura do conteúdo
+  useEffect(() => {
+    if (contentRef.current && proposalData?.conteudo) {
+      const contentHeight = contentRef.current.scrollHeight
+      const calculatedPages = Math.ceil(contentHeight / PAGE_CONTENT_HEIGHT)
+      setTotalPages(Math.max(1, calculatedPages))
+    } else {
+      setTotalPages(1)
+    }
+  }, [proposalData, PAGE_CONTENT_HEIGHT])
 
   const zoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 1.5))
   const zoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.3))
@@ -49,37 +68,67 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
       await navigator.clipboard.writeText(shareLink)
       setLinkCopied(true)
 
-      toast({
-        title: "Link Copiado",
-        description: "Link copiado para a área de transferência!",
-      })
+      toast.success('Link copiado para a área de transferência!')
 
       setTimeout(() => setLinkCopied(false), 2000)
     } catch (error) {
-      toast({
-        title: "Erro ao Copiar",
-        description: "Não foi possível copiar o link",
-        variant: "destructive",
-      })
+      toast.error('Não foi possível copiar o link')
     }
   }
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    // Se for admin, imprime diretamente sem pagar
+    if (isAdmin) {
+      if (!previewRef.current) return
+
+      try {
+        printDocument(previewRef.current)
+        toast.success('Impressão iniciada!')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Falha ao imprimir')
+      }
+      return
+    }
+
+    // Verificar se usuário tem acesso ativo
+    if (user?.id) {
+      try {
+        const response = await fetch(`/api/payments/check-access?userId=${user.id}`)
+        const data = await response.json()
+
+        if (data.success && data.hasAccess && !data.needsPayment) {
+          // Usuário tem acesso ativo, imprime diretamente
+          if (!previewRef.current) return
+
+          try {
+            printDocument(previewRef.current)
+            toast.success('Impressão iniciada!')
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Falha ao imprimir')
+          }
+          return
+        }
+      } catch (error) {
+        console.error('Erro ao verificar acesso:', error)
+      }
+    }
+
+    // Se não tem acesso ativo, abre modal de pagamento
+    setIsPaymentModalOpen(true)
+  }
+
+  const handlePaymentComplete = () => {
+    // Após pagamento confirmado, permitir impressão
     if (!previewRef.current) return
 
     try {
       printDocument(previewRef.current)
 
-      toast({
-        title: "Impressão Iniciada",
-        description: "Janela de impressão aberta!",
-      })
+      toast.success('Janela de impressão aberta!')
+      
+      setIsPaymentModalOpen(false)
     } catch (error) {
-      toast({
-        title: "Erro na Impressão",
-        description: error instanceof Error ? error.message : "Falha ao imprimir",
-        variant: "destructive",
-      })
+      toast.error(error instanceof Error ? error.message : 'Falha ao imprimir')
     }
   }
 
@@ -178,12 +227,19 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
                 transformOrigin: "top center",
               }}
             >
-              <div
-                ref={previewRef}
-                className="w-[794px] h-[1123px] bg-white relative overflow-hidden"
-                id="proposal-preview"
-              >
-                <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-r from-primary/5 to-primary/10 border-b-2 border-primary/20">
+              <div ref={previewRef} className="w-[794px] bg-white" id="proposal-preview">
+                {Array.from({ length: totalPages }).map((_, pageIndex) => (
+                  <div
+                    key={pageIndex}
+                    className="w-[794px] h-[1123px] bg-white flex flex-col relative"
+                    style={{
+                      pageBreakAfter: pageIndex < totalPages - 1 ? 'always' : 'auto',
+                      breakAfter: pageIndex < totalPages - 1 ? 'page' : 'auto',
+                    }}
+                  >
+                    {/* Header - apenas na primeira página */}
+                    {pageIndex === 0 && (
+                      <div className="h-24 bg-gradient-to-r from-primary/5 to-primary/10 border-b-2 border-primary/20 flex-shrink-0">
                   <div className="flex items-center justify-between h-full px-12">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center border-2 border-primary/20">
@@ -214,10 +270,14 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
                       <p className="font-medium">Data: {new Date().toLocaleDateString("pt-BR")}</p>
                       <p>Proposta Nº: {String(Date.now()).slice(-6)}/{new Date().toLocaleDateString("pt-BR", { year: 'numeric' })}</p>
                     </div>
-                  </div>
-                </div>
+                      </div>
+                    </div>
+                    )}
 
-                <div className="absolute top-24 left-0 right-0 bottom-16 px-12 py-8 overflow-hidden">
+                    {/* Content */}
+                    <div className="flex-1 px-12 py-8 overflow-hidden">
+                      {pageIndex === 0 && (
+                        <div ref={contentRef}>
                   <div className="mb-8">
                     <h2 className="text-lg font-bold text-primary mb-3 border-b border-primary/20 pb-1">
                       DADOS DO CONTRATANTE
@@ -302,30 +362,35 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
                     </div>
                   </div>
 
-                  {proposalData?.conteudo && (
-                    <div className="mb-4">
-                      <h3 className="text-md font-semibold text-primary mb-2">TERMOS E CONDIÇÕES</h3>
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <p>• Esta proposta tem validade de 30 (trinta) dias a partir da data de emissão.</p>
-                        <p>• Os valores apresentados são válidos para as condições especificadas nesta proposta.</p>
-                        <p>• Eventuais alterações no escopo poderão implicar em revisão dos valores.</p>
+                          {proposalData?.conteudo && (
+                            <div className="mb-4">
+                              <h3 className="text-md font-semibold text-primary mb-2">TERMOS E CONDIÇÕES</h3>
+                              <div className="text-xs text-muted-foreground space-y-1">
+                                <p>• Esta proposta tem validade de 30 (trinta) dias a partir da data de emissão.</p>
+                                <p>• Os valores apresentados são válidos para as condições especificadas nesta proposta.</p>
+                                <p>• Eventuais alterações no escopo poderão implicar em revisão dos valores.</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer - em todas as páginas */}
+                    <div className="h-16 bg-gradient-to-r from-primary/5 to-primary/10 border-t border-primary/20 flex-shrink-0 mt-auto">
+                      <div className="flex items-center justify-between h-full px-12">
+                        <div className="text-xs text-muted-foreground">
+                          <p>{proposalData?.contratante.nome || "Empresa"} - Proposta Comercial</p>
+                          <p>{proposalData?.contratante.email || "contato@empresa.com"}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground text-right">
+                          <p>Página {pageIndex + 1} de {totalPages}</p>
+                          <p>Gerado em {new Date().toLocaleDateString("pt-BR")}</p>
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-r from-primary/5 to-primary/10 border-t border-primary/20">
-                  <div className="flex items-center justify-between h-full px-12">
-                    <div className="text-xs text-muted-foreground">
-                      <p>{proposalData?.contratante.nome || "Empresa"} - Proposta Comercial</p>
-                      <p>{proposalData?.contratante.email || "contato@empresa.com"}</p>
-                    </div>
-                    <div className="text-xs text-muted-foreground text-right">
-                      <p>Página 1 de 1</p>
-                      <p>Gerado em {new Date().toLocaleDateString("pt-BR")}</p>
-                    </div>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -342,6 +407,13 @@ export function PreviewTab({ proposalData, user }: PreviewTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Pagamento */}
+      <PaymentModalPrint
+        open={isPaymentModalOpen}
+        onOpenChange={setIsPaymentModalOpen}
+        onPaymentComplete={handlePaymentComplete}
+      />
     </div>
   )
 }

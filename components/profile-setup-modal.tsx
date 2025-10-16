@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { validateCPF, validatePhone, formatCPF, formatPhone, unformatCPF, unformatPhone } from '@/lib/validators';
 import { useUserProfile } from '@/hooks/use-user-profile';
 
@@ -25,7 +24,7 @@ interface ProfileSetupModalProps {
 }
 
 export function ProfileSetupModal({ open, onOpenChange, userId, onComplete }: ProfileSetupModalProps) {
-  const { createProfile, loading } = useUserProfile();
+  const { fetchProfile, createProfile, loading } = useUserProfile();
   const [formData, setFormData] = useState({
     cpf: '',
     phone: '',
@@ -118,8 +117,21 @@ export function ProfileSetupModal({ open, onOpenChange, userId, onComplete }: Pr
   }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      // Só permite fechar se não estiver carregando
+      if (!loading) {
+        onOpenChange(isOpen);
+      }
+    }}>
+      <DialogContent 
+        className="sm:max-w-[425px]" 
+        onInteractOutside={(e) => {
+          // Previne fechar clicando fora apenas se estiver carregando
+          if (loading) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Complete seu Cadastro</DialogTitle>
           <DialogDescription>

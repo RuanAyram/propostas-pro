@@ -59,8 +59,9 @@ export function ConfigTab({ proposalData, onDataChange, user }: ConfigTabProps) 
   }, [user])
 
   const loadTemplates = async () => {
+    if (!user?.id) return
     try {
-      const response = await fetch("/api/templates")
+      const response = await fetch(`/api/templates?userId=${user.id}`)
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -191,6 +192,7 @@ export function ConfigTab({ proposalData, onDataChange, user }: ConfigTabProps) 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          userId: user?.id,
           name: templateName,
           content: proposalData.conteudo,
           description: `Template criado em ${new Date().toLocaleDateString()}`,
@@ -224,7 +226,7 @@ export function ConfigTab({ proposalData, onDataChange, user }: ConfigTabProps) 
   const deleteTemplate = async (templateId: number) => {
     if (confirm("Tem certeza que deseja excluir este template?")) {
       try {
-        const response = await fetch(`/api/templates/${templateId}`, {
+        const response = await fetch(`/api/templates/${templateId}?userId=${user?.id}`, {
           method: "DELETE",
         })
 

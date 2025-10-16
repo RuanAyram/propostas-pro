@@ -232,12 +232,40 @@ export const printDocument = (element: HTMLElement) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Proposta Comercial</title>
+        <title>Documento</title>
+        <meta charset="UTF-8">
         <style>
           ${styles}
+          @page {
+            size: A4;
+            margin: 0;
+          }
           @media print {
-            body { margin: 0; }
-            .no-print { display: none !important; }
+            html, body {
+              width: 210mm;
+              height: 297mm;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            .no-print {
+              display: none !important;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .page-break {
+              page-break-after: always;
+              break-after: page;
+            }
+            .page-break-avoid {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
           }
         </style>
       </head>
@@ -253,7 +281,7 @@ export const printDocument = (element: HTMLElement) => {
   setTimeout(() => {
     printWindow.print()
     printWindow.close()
-  }, 250)
+  }, 500)
 }
 
 export const generateShareableLink = (proposalData: any): string => {

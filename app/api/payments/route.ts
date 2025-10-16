@@ -14,8 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const roleManager = new UserRoleManager();
-    const isAdmin = await roleManager.isAdmin(userId);
+    const isAdmin = await UserRoleManager.isUserAdmin(userId)
 
     if (!isAdmin) {
       return NextResponse.json(

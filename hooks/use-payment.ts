@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 export interface PaymentCustomer {
   name: string;
+  userId: string;
   email: string;
   cellphone: string;
   taxId: string;
@@ -16,6 +17,7 @@ export interface CreatePaymentData {
   expiresIn?: number;
   customer: PaymentCustomer;
   externalId?: string;
+  plan?: 'monthly' | 'annual';
 }
 
 export interface Payment {
@@ -28,6 +30,8 @@ export interface Payment {
   expiresAt: string;
   paidAt?: string;
   description?: string;
+  plan?: 'monthly' | 'annual';
+  accessExpiresAt?: string;
   customer: {
     name: string;
     email: string;

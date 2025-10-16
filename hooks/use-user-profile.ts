@@ -39,15 +39,19 @@ export function useUserProfile(userId?: string) {
       const response = await fetch(`/api/user/profile?userId=${targetUserId}`);
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && data.profile) {
         setProfile(data.profile);
-      } else if (response.status !== 404) {
-        // Não mostrar erro se perfil não existe
+      } else if (response.status === 404) {
+        // Perfil não existe
+        setProfile(null);
+      } else {
+        // Outro erro
         throw new Error(data.error);
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao buscar perfil';
       setError(errorMessage);
+      setProfile(null);
     } finally {
       setLoading(false);
     }

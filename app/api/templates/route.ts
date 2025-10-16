@@ -10,7 +10,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId')
+
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    }
+
     const templates = await prisma.template.findMany({
+      where: { userId: userId },
       orderBy: { createdAt: 'desc' }
     })
 
@@ -29,14 +37,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name, content, description } = await request.json()
+    const { userId, name, content, description } = await request.json()
 
-    if (!name || !content) {
-      return NextResponse.json({ error: "Name and content are required" }, { status: 400 })
+    if (!userId || !name || !content) {
+      return NextResponse.json({ error: "userId, name and content are required" }, { status: 400 })
     }
 
     const template = await prisma.template.create({
       data: {
+        userId,
         name,
         content,
         description: description || ""
@@ -47,7 +56,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating template:", error)
     if (error instanceof Error && error.message.includes('Unique constraint')) {
-      return NextResponse.json({ error: "Template with this name already exists" }, { status: 409 })
+      return NextResponse.json({ error: "Template with this name already exists for this user" }, { status: 409 })
     }
     return NextResponse.json({ error: "Failed to create template" }, { status: 500 })
   }

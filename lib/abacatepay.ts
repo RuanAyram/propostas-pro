@@ -125,7 +125,12 @@ class AbacatePayClient {
   async getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse> {
     try {
       const response = await this.client.get<PaymentStatusResponse>(
-        `/pixQrCode/${paymentId}`
+        `/pixQrCode/check`,
+        {
+          params: {
+            id: paymentId,
+          },
+        }
       );
       return response.data;
     } catch (error: any) {
