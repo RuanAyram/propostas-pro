@@ -9,6 +9,7 @@ import { printDocument } from "@/lib/pdf-utils"
 import { PaymentModalPrint } from "@/components/payment-modal-print"
 import { useAdmin } from "@/hooks/use-admin"
 import { toast } from "sonner"
+import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer"
 
 interface ContractData {
   contratante: {
@@ -35,24 +36,102 @@ interface ContractPreviewTabProps {
 export function ContractPreviewTab({ contractData, user }: ContractPreviewTabProps) {
   const [zoomLevel, setZoomLevel] = useState(0.7)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-  const [totalPages, setTotalPages] = useState(1)
+  const [totalPages1, setTotalPages1] = useState(1)
   const previewRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const { isAdmin } = useAdmin()
 
-  // Altura de uma página A4 em pixels (1123px) menos header (120px) e footer (48px)
-  const PAGE_CONTENT_HEIGHT = 1123 - 120 - 48 // 955px de conteúdo por página
+  const styles = StyleSheet.create({
+    page: {
+      padding: 40,
+      paddingBottom: 20,
+      fontSize: 11,
+      fontFamily: "Helvetica",
+      lineHeight: 1.5,
+    },
+    header: {
+      textAlign: "center",
+      borderBottom: "1pt solid #999",
+      paddingBottom: 8,
+      marginBottom: 12,
+    },
+    section: {
+      marginBottom: 12,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: "bold",
+      color: "#1E40AF", // equivalente a text-primary
+      marginBottom: 6,
+    },
+    label: {
+      fontWeight: "bold",
+      fontSize: 11,
+    },
+    text: {
+      fontSize: 10,
+      textAlign: "justify",
+      marginBottom: 3,
+    },
+    muted: {
+      color: "#555",
+      fontSize: 9,
+    },
+    dividerTop: {
+      borderTopWidth: 1,
+      borderTopColor: "#aaa",
+      marginTop: 16,
+      paddingTop: 4,
+    },
+    signatureBlock: {
+      marginTop: 40,
+    },
+    date: {
+      textAlign: "center",
+      marginBottom: 24,
+      fontSize: 10,
+    },
+    signatureGrid: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 48,
+    },
+    signature: {
+      width: "45%",
+      alignItems: "center",
+    },
+    signatureLine: {
+      borderTopWidth: 1,
+      borderTopColor: "#999",
+      width: "100%",
+      marginBottom: 4,
+    },
+    signatureLabel: {
+      fontSize: 10,
+      fontWeight: "bold",
+    },
+    signatureDoc: {
+      fontSize: 9,
+      color: "#666",
+    },
+    footer: {
+      fontSize: 12,
+      bottom: -100,
+      left: 0,
+      right: 0,
+      textAlign: 'center',
+      color: 'grey',
+    },
+  })
 
   // Calcular número de páginas baseado na altura do conteúdo
   useEffect(() => {
     if (contentRef.current && contractData) {
-      const contentHeight = contentRef.current.scrollHeight
-      const calculatedPages = Math.ceil(contentHeight / PAGE_CONTENT_HEIGHT)
-      setTotalPages(Math.max(1, calculatedPages))
+      setTotalPages1(1)
     } else {
-      setTotalPages(1)
+      setTotalPages1(1)
     }
-  }, [contractData, PAGE_CONTENT_HEIGHT])
+  }, [contractData])
 
   const zoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 1.5))
   const zoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.3))
@@ -60,14 +139,139 @@ export function ContractPreviewTab({ contractData, user }: ContractPreviewTabPro
   const hasData =
     contractData && (contractData.contratante.nome || contractData.contratado.nome || contractData.objeto)
 
+  const ContractPDF = ({ data }: any) => (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</Text>
+          <Text>Contrato Nº: {String(Date.now()).slice(-6)}/{new Date().getFullYear()}</Text>
+        </View>
+
+        {/* DAS PARTES */}
+        <View style={styles.section}>
+          <Text style={styles.title}>DAS PARTES</Text>
+
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.label}>CONTRATANTE:</Text>
+            <Text style={styles.text}>{data?.contratante?.nome || "[Nome do Contratante]"}</Text>
+            <Text style={styles.muted}>
+              CNPJ/CPF: {data?.contratante?.documento || "[Documento]"}
+            </Text>
+            <Text style={styles.muted}>
+              Endereço: {data?.contratante?.endereco || "[Endereço]"}
+            </Text>
+          </View>
+
+          <View>
+            <Text style={styles.label}>CONTRATADO:</Text>
+            <Text style={styles.text}>{data?.contratado?.nome || "[Nome do Contratado]"}</Text>
+            <Text style={styles.muted}>
+              CNPJ/CPF: {data?.contratado?.documento || "[Documento]"}
+            </Text>
+            <Text style={styles.muted}>
+              Endereço: {data?.contratado?.endereco || "[Endereço]"}
+            </Text>
+          </View>
+        </View>
+
+        {/* DO OBJETO */}
+        <View style={styles.section}>
+          <Text style={styles.title}>DO OBJETO</Text>
+          <Text style={styles.text}>
+            {data?.objeto || "[Descrição do objeto do contrato]"}
+          </Text>
+        </View>
+
+        {/* DO VALOR */}
+        <View style={styles.section}>
+          <Text style={styles.title}>DO VALOR</Text>
+          <Text style={styles.text}>
+            {data?.valor || "[Valor e forma de pagamento]"}
+          </Text>
+        </View>
+
+        {/* DO PRAZO */}
+        <View style={styles.section}>
+          <Text style={styles.title}>DO PRAZO</Text>
+          <Text style={styles.text}>
+            {data?.prazo || "[Prazo de vigência do contrato]"}
+          </Text>
+        </View>
+
+        {/* DAS CLÁUSULAS GERAIS */}
+        <View style={styles.section}>
+          <Text style={styles.title}>DAS CLÁUSULAS GERAIS</Text>
+          <Text style={styles.text}>
+            {data?.clausulas || "[Cláusulas contratuais]"}
+          </Text>
+        </View>
+
+        {/* ASSINATURAS */}
+        <View style={[styles.signatureBlock]}>
+          <Text style={styles.date}>
+            {new Date().toLocaleDateString("pt-BR", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </Text>
+
+          <View style={styles.signatureGrid}>
+            {/* Contratante */}
+            <View style={styles.signature}>
+              <View style={styles.signatureLine} />
+              <Text style={styles.signatureLabel}>
+                {data?.contratante?.nome || "CONTRATANTE"}
+              </Text>
+              <Text style={styles.signatureDoc}>
+                {data?.contratante?.documento || "CPF/CNPJ"}
+              </Text>
+            </View>
+
+            {/* Contratado */}
+            <View style={styles.signature}>
+              <View style={styles.signatureLine} />
+              <Text style={styles.signatureLabel}>
+                {data?.contratado?.nome || "CONTRATADO"}
+              </Text>
+              <Text style={styles.signatureDoc}>
+                {data?.contratado?.documento || "CPF/CNPJ"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* FOOTER FIXO */}
+        <View style={styles.footer} fixed>
+          <Text>Contrato de Prestação de Serviços</Text>
+          <Text render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+            `Página ${pageNumber} de ${totalPages}`
+          } fixed />
+        </View>
+      </Page>
+    </Document>
+  )
+
   const handlePrint = async () => {
     // Se for admin, imprime diretamente sem pagar
     if (isAdmin) {
-      if (!previewRef.current) return
 
       try {
-        printDocument(previewRef.current)
+        // printDocument(previewRef.current)
         toast.success('Impressão iniciada!')
+        const blob = await pdf(<ContractPDF data={contractData} />).toBlob()
+        const fileURL = URL.createObjectURL(blob)
+        console.log("fileURL")
+        const printWindow = window.open(fileURL)
+        if (!printWindow) {
+          toast.error("Falha ao abrir janela de impressão")
+          return
+        }
+        printWindow.onload = () => {
+          printWindow.focus()
+          printWindow.print()
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Falha ao imprimir')
       }
@@ -82,10 +286,21 @@ export function ContractPreviewTab({ contractData, user }: ContractPreviewTabPro
 
         if (data.success && data.hasAccess && !data.needsPayment) {
           // Usuário tem acesso ativo, imprime diretamente
-          if (!previewRef.current) return
+          // if (!previewRef.current) return
 
           try {
-            printDocument(previewRef.current)
+            // printDocument(previewRef.current)
+            const blob = await pdf(<ContractPDF data={contractData} />).toBlob()
+            const fileURL = URL.createObjectURL(blob)
+            const printWindow = window.open(fileURL)
+            if (!printWindow) {
+              toast.error("Falha ao abrir janela de impressão")
+              return
+            }
+            printWindow.onload = () => {
+              printWindow.focus()
+              printWindow.print()
+            }
             toast.success('Impressão iniciada!')
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Falha ao imprimir')
@@ -101,12 +316,23 @@ export function ContractPreviewTab({ contractData, user }: ContractPreviewTabPro
     setIsPaymentModalOpen(true)
   }
 
-  const handlePaymentComplete = () => {
+  const handlePaymentComplete = async () => {
     // Após pagamento confirmado, permitir impressão
-    if (!previewRef.current) return
+    // if (!previewRef.current) return
 
     try {
-      printDocument(previewRef.current)
+      // printDocument(previewRef.current)
+      const blob = await pdf(<ContractPDF data={contractData} />).toBlob()
+      const fileURL = URL.createObjectURL(blob)
+      const printWindow = window.open(fileURL)
+      if (!printWindow) {
+        toast.error("Falha ao abrir janela de impressão")
+        return
+      }
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
       toast.success('Janela de impressão aberta!')
       setIsPaymentModalOpen(false)
     } catch (error) {
@@ -162,140 +388,22 @@ export function ContractPreviewTab({ contractData, user }: ContractPreviewTabPro
           <CardDescription>Prévia de como seu contrato será exibido no formato A4</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex justify-center bg-gray-100 p-8 rounded-lg">
-            <div
-              className="bg-white shadow-2xl transition-transform duration-200"
-              style={{
-                transform: `scale(${zoomLevel})`,
-                transformOrigin: "top center",
-              }}
-            >
-              <div ref={previewRef} className="w-[794px] bg-white" id="contract-preview">
-                {Array.from({ length: totalPages }).map((_, pageIndex) => (
-                  <div
-                    key={pageIndex}
-                    className="w-[794px] h-[1123px] bg-white flex flex-col relative"
-                    style={{
-                      pageBreakAfter: pageIndex < totalPages - 1 ? 'always' : 'auto',
-                      breakAfter: pageIndex < totalPages - 1 ? 'page' : 'auto',
-                    }}
-                  >
-                    {/* Header - apenas na primeira página */}
-                    {pageIndex === 0 && (
-                      <div className="px-12 py-8 border-b-2 border-primary/20 flex-shrink-0">
-                  <h1 className="text-3xl font-bold text-center text-primary mb-2">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
-                        <p className="text-center text-sm text-muted-foreground">
-                          Contrato Nº: {String(Date.now()).slice(-6)}/{new Date().toLocaleDateString("pt-BR", { year: 'numeric' })}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Content */}
-                    <div className="flex-1 px-12 py-8 overflow-hidden">
-                      {pageIndex === 0 && (
-                        <div ref={contentRef} className="space-y-6">
-                  {/* Partes */}
-                  <div>
-                    <h2 className="text-lg font-bold text-primary mb-3">DAS PARTES</h2>
-                    
-                    <div className="mb-4">
-                      <p className="font-semibold">CONTRATANTE:</p>
-                      <p className="text-sm">{contractData?.contratante.nome || "[Nome do Contratante]"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        CNPJ/CPF: {contractData?.contratante.documento || "[Documento]"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Endereço: {contractData?.contratante.endereco || "[Endereço]"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="font-semibold">CONTRATADO:</p>
-                      <p className="text-sm">{contractData?.contratado.nome || "[Nome do Contratado]"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        CNPJ/CPF: {contractData?.contratado.documento || "[Documento]"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Endereço: {contractData?.contratado.endereco || "[Endereço]"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Objeto */}
-                  <div>
-                    <h2 className="text-lg font-bold text-primary mb-3">DO OBJETO</h2>
-                    <p className="text-sm text-justify whitespace-pre-wrap">
-                      {contractData?.objeto || "[Descrição do objeto do contrato]"}
-                    </p>
-                  </div>
-
-                  {/* Valor */}
-                  <div>
-                    <h2 className="text-lg font-bold text-primary mb-3">DO VALOR</h2>
-                    <p className="text-sm text-justify whitespace-pre-wrap">
-                      {contractData?.valor || "[Valor e forma de pagamento]"}
-                    </p>
-                  </div>
-
-                  {/* Prazo */}
-                  <div>
-                    <h2 className="text-lg font-bold text-primary mb-3">DO PRAZO</h2>
-                    <p className="text-sm text-justify whitespace-pre-wrap">
-                      {contractData?.prazo || "[Prazo de vigência do contrato]"}
-                    </p>
-                  </div>
-
-                  {/* Cláusulas */}
-                  <div>
-                    <h2 className="text-lg font-bold text-primary mb-3">DAS CLÁUSULAS GERAIS</h2>
-                    <div className="text-sm text-justify whitespace-pre-wrap space-y-2">
-                      {contractData?.clausulas || "[Cláusulas contratuais]"}
-                    </div>
-                  </div>
-
-                  {/* Assinaturas */}
-                  <div className="mt-12 pt-8">
-                    <p className="text-sm text-center mb-12">
-                      {new Date().toLocaleDateString("pt-BR", { 
-                        day: 'numeric', 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })}
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-8 mt-16">
-                      <div className="text-center">
-                        <div className="border-t border-foreground/30 pt-2">
-                          <p className="text-sm font-semibold">{contractData?.contratante.nome || "CONTRATANTE"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {contractData?.contratante.documento || "CPF/CNPJ"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="border-t border-foreground/30 pt-2">
-                          <p className="text-sm font-semibold">{contractData?.contratado.nome || "CONTRATADO"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {contractData?.contratado.documento || "CPF/CNPJ"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footer - em todas as páginas */}
-                    <div className="px-12 py-4 border-t border-primary/20 bg-muted/10 flex-shrink-0 mt-auto">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <p>Contrato de Prestação de Serviços</p>
-                        <p>Página {pageIndex + 1} de {totalPages}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <div className="w-full bg-gray-100 p-4 rounded-lg overflow-auto">
+            <div className="flex justify-center w-full">
+              <div style={{ 
+                width: '100%', 
+                maxWidth: '220mm',
+                height: '300mm',
+                overflow: 'hidden',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+              }}>
+                <PDFViewer 
+                  width="100%"
+                  height="100%"
+                  showToolbar={false}
+                >
+                  <ContractPDF data={contractData} />
+                </PDFViewer>
               </div>
             </div>
           </div>
